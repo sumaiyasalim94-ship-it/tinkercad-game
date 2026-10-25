@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>سباق تنكركاد</title>
+<style>
+:root{--ink:#14183f;--night:#1b1f4b;--cyan:#36d6e7;--coral:#ff6b6b;--sun:#ffd23f;--mint:#3ddc97}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0e1030;font-family:Tahoma,"Segoe UI",Arial,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+#hud{display:none;align-items:center;gap:14px;padding:8px 14px;background:var(--night);color:#fff;font-weight:700;font-size:clamp(14px,2.6vw,20px);border-bottom:3px solid var(--cyan)}
+#hud.on{display:flex}
+#hud .chip{background:rgba(255,255,255,.12);border-radius:14px;padding:5px 14px;white-space:nowrap}
+#bar{flex:1;height:14px;background:rgba(255,255,255,.18);border-radius:8px;overflow:hidden}
+#fill{height:100%;width:0;background:linear-gradient(90deg,var(--mint),var(--sun));transition:width .4s}
+#stage{position:relative;flex:1;min-height:0}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;background:rgba(14,16,48,.8);color:#fff;overflow:auto}
+.screen.on{display:flex}
+.title{font-size:clamp(36px,9vw,76px);font-weight:900;margin:0 0 8px;text-shadow:0 5px 0 var(--coral)}
+.sub{font-size:clamp(16px,3vw,24px);max-width:640px;line-height:1.7;margin:0 0 26px}
+button{font:inherit;cursor:pointer}
+.big{font-size:clamp(20px,4vw,28px);font-weight:800;padding:14px 40px;border:0;border-radius:18px;background:var(--sun);color:var(--ink);box-shadow:0 6px 0 #c99a00}
+.big:active{transform:translateY(4px);box-shadow:0 2px 0 #c99a00}
+.help{list-style:none;padding:0;margin:0 0 26px;max-width:620px;text-align:right;font-size:clamp(16px,2.8vw,22px);line-height:1.6}
+.help li{background:rgba(255,255,255,.1);border-radius:14px;padding:10px 16px;margin:8px 0;border-right:6px solid var(--cyan)}
+#qbox{position:absolute;top:3%;left:50%;transform:translateX(-50%);width:min(740px,95%);max-height:78%;overflow:auto;background:#fff;color:var(--ink);border-radius:22px;padding:16px 18px;box-shadow:0 10px 0 rgba(0,0,0,.25);display:none;border:4px solid var(--cyan)}
+#qbox.on{display:block}
+#qnum{font-size:15px;font-weight:700;color:#5b5f8f;margin-bottom:4px}
+#qtext{font-size:clamp(18px,3.2vw,26px);font-weight:800;line-height:1.6;margin:0 0 12px}
+#opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{min-height:58px;font-size:clamp(16px,2.8vw,22px);font-weight:700;border:3px solid #cfd3f5;background:#f4f5ff;color:var(--ink);border-radius:16px;padding:8px 12px;text-align:right;direction:rtl}
+.opt:hover{border-color:var(--cyan);background:#e6fbff}
+.opt b{display:inline-block;width:28px;height:28px;line-height:28px;text-align:center;border-radius:50%;background:var(--ink);color:#fff;font-size:15px;margin-left:8px}
+.opt.ok{background:#c9f7df;border-color:var(--mint)}
+.opt.bad{background:#ffdede;border-color:var(--coral)}
+.opt:disabled{cursor:default}
+#fb{display:none;margin-top:12px;border-radius:14px;padding:10px 14px;font-size:clamp(15px,2.6vw,20px);line-height:1.7;font-weight:700}
+#fb.good{display:block;background:#c9f7df}
+#fb.miss{display:block;background:#fff2cf}
+#fb .big{font-size:18px;padding:8px 26px;margin-top:8px}
+#pad{position:absolute;bottom:10px;left:0;right:0;display:none;justify-content:space-between;padding:0 14px;direction:ltr;pointer-events:none}
+#pad.on{display:flex}
+#pad button{pointer-events:auto;width:clamp(64px,13vw,92px);height:clamp(64px,13vw,92px);border-radius:50%;border:4px solid #fff;background:rgba(54,214,231,.55);color:#fff;font-size:34px;font-weight:900}
+#pad button:active{background:rgba(255,210,63,.8)}
+.credit{margin-top:22px;font-size:13px;opacity:.75;letter-spacing:.2px}
+.res{font-size:clamp(46px,12vw,96px);font-weight:900;color:var(--sun);margin:0}
+.btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+@media(max-width:560px){#opts{grid-template-columns:1fr}#hud{gap:6px;padding:6px 8px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="chip">⭐ النقاط: <span id="hScore">٠</span></div>
+    <div class="chip">السؤال <span id="hQ">٠</span> / ١٠</div>
+    <div id="bar"><div id="fill"></div></div>
+  </div>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="pad"><button id="bL" aria-label="يسار">◀</button><button id="bR" aria-label="يمين">▶</button></div>
+
+    <div id="qbox">
+      <div id="qnum"></div>
+      <p id="qtext"></p>
+      <div id="opts"></div>
+      <div id="fb"></div>
+    </div>
+
+    <div class="screen on" id="sStart">
+      <h1 class="title">سباق تنكركاد</h1>
+      <p class="sub">اركضي في مدينة المجسمات، تفادي العقبات، وأجيبي عن أسئلة النمذجة ثلاثية الأبعاد!</p>
+      <button class="big" id="bStart">ابدئي اللعب</button>
+      <div class="credit">إعداد: أ. سميه الذهلي</div>
+    </div>
+
+    <div class="screen" id="sHelp">
+      <h1 class="title" style="font-size:clamp(30px,6vw,52px)">طريقة اللعب</h1>
+      <ul class="help">
+        <li>تحركي بين المسارات الثلاثة بالأسهم ← → أو بالمفتاحين A وD، أو بالسحب والأزرار على الشاشة.</li>
+        <li>اجمعي الجواهر الزرقاء 💎 (+١٠ نقاط)، وتفادي المجسمات: المكعب والمخروط والأسطوانة.</li>
+        <li>عند ظهور سؤال تتوقف الشخصية، فاختاري الإجابة الصحيحة بالماوس أو باللمس.</li>
+        <li>عدد الأسئلة ١٠، وكل إجابة صحيحة تمنحك ١٠٠ نقطة.</li>
+      </ul>
+      <button class="big" id="bGo">هيا نركض</button>
+    </div>
+
+    <div class="screen" id="sRes">
+      <h1 class="title" style="font-size:clamp(30px,6vw,52px)">النتيجة النهائية</h1>
+      <p class="res" id="rScore"></p>
+      <p class="sub" id="rPct" style="margin:6px 0"></p>
+      <p class="sub" id="rMsg"></p>
+      <div class="btns"><button class="big" id="bAgain">إعادة اللعب</button></div>
+      <div class="credit">إعداد: أ. سميه الذهلي</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   الأسئلة (يمكن تعديلها بسهولة)
+   q: نص السؤال | o: الخيارات الأربعة | a: رقم الإجابة الصحيحة (0-3) | why: تفسير يظهر عند الخطأ
+   مصدر كل الأسئلة: الدرس 2-1 «مقدمة إلى النمذجة ثلاثية الأبعاد»
+   ============================================================ */
+const QUESTIONS = [
+ {q:"ما المقصود بالنمذجة ثنائية الأبعاد (2D modeling)؟",
+  o:["إنشاء أشكال افتراضية تبدو كالأشكال الحقيقية","عملية تصميم صورة أو مشهد مسطّح","طباعة المجسمات باستخدام البلاستيك","تصميم المنازل والمدارس قبل بنائها"],a:1,
+  why:"النمذجة ثنائية الأبعاد هي عملية تصميم صورة أو مشهد مسطّح."},
+ {q:"أي مما يأتي يُعدّ من استخدامات النمذجة ثلاثية الأبعاد في ألعاب الفيديو؟",
+  o:["كتابة النصوص على الورق","تصميم الشخصيات والكائنات والمشاهد","ضبط حجم الشبكة الزرقاء","تحويل الحبر إلى مسحوق"],a:1,
+  why:"تُستخدم النمذجة ثلاثية الأبعاد في ألعاب الفيديو لتصميم الشخصيات والكائنات والمشاهد."},
+ {q:"ما بُعدا الشكل ثنائي الأبعاد؟",
+  o:["الطول والارتفاع","العرض والارتفاع","الطول والعرض","الارتفاع والعمق"],a:2,
+  why:"الأشكال ثنائية الأبعاد مسطحة ولها بعدان هما الطول والعرض."},
+ {q:"في نظام الإحداثيات ثلاثي الأبعاد، ما الاتجاه الذي يشير إليه المحور Z؟",
+  o:["الوضع الأفقي","الوضع العمودي في الشكل ثنائي الأبعاد","اتجاه الارتفاع","اتجاه العرض"],a:2,
+  why:"يشير المحور Z إلى اتجاه الارتفاع."},
+ {q:"ما الذي تطبعه الطابعات ثلاثية الأبعاد؟",
+  o:["الصور والنصوص على سطح مستوٍ مثل الورق","مجسمات ثلاثية الأبعاد","الصور باستخدام الحبر فقط","الرسومات ثنائية الأبعاد على الشاشة"],a:1,
+  why:"الطابعات ثلاثية الأبعاد تطبع مجسمات ثلاثية الأبعاد."},
+ {q:"أي نوع من الطابعات ثلاثية الأبعاد يُستخدم في عمليات البناء، مثل إنشاء المنازل وبناء مكونات الجسور؟",
+  o:["الطابعات المدمجة","الطابعات التجارية","الطابعات الصناعية العملاقة","الطابعات ثنائية الأبعاد"],a:2,
+  why:"الطابعات ثلاثية الأبعاد الصناعية العملاقة تُستخدم في عمليات البناء."},
+ {q:"ما وظيفة قائمة Gallery (المعرض) في موقع Tinkercad؟",
+  o:["إنشاء حساب جديد","عرض التصميمات التي أنشأها مجتمع مستخدمي تنكركاد","الدخول إلى الحساب الحالي","تقديم دروس المشروعات المعدّة مسبقًا"],a:1,
+  why:"قائمة Gallery تعرض التصميمات التي أنشأها مجتمع مستخدمي تنكركاد."},
+ {q:"ما الـ Workplane (مساحة العمل) في تطبيق Tinkercad؟",
+  o:["لوحة تعرض تفاصيل الشكل","أداة لنسخ الكائنات","شبكة زرقاء مسطحة تساعد على الحفاظ على اتساق العناصر في مكانها الصحيح","قائمة لتغيير اسم المشروع"],a:2,
+  why:"Workplane شبكة زرقاء مسطحة تتيح لك الحفاظ على اتساق جميع العناصر في مكانها الصحيح."},
+ {q:"في لوحة Inspector (المعاينة)، ما الخاصية التي تحدد ارتفاع الصندوق على امتداد المحور Z؟",
+  o:["Length","Width","Height","Radius"],a:2,
+  why:"Height (الارتفاع) يحدد ارتفاع الصندوق على امتداد المحور Z."},
+ {q:"أي مقبض تستخدمه لتحريك الشكل لأعلى أو لأسفل على امتداد المحور Z في Workplane؟",
+  o:["المقبض الأبيض الموجود على الزوايا","المقبض الأسود المخروطي الموجود أعلى الشكل","زر Home view","أداة Snap Grid"],a:1,
+  why:"لتحريك الشكل لأعلى أو لأسفل نستخدم المقبض الأسود المخروطي الموجود أعلى الشكل."}
+];
+const TOTAL = QUESTIONS.length;      // 10
+const PTS_CORRECT = 100, PTS_GEM = 10;
+
+/* ============================== أدوات ============================== */
+const $ = id => document.getElementById(id);
+const AR = s => String(s).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W=0,H=0,dpr=1,horizon=0,gb=0,roadHalf=0,cx=0;
+const F = 260;                                   // عمق المنظور
+const proj = z => F/(F+z);
+const laneOff = 0.62;                            // موضع المسار من منتصف الطريق
+function resize(){
+  const r = $('stage').getBoundingClientRect();
+  dpr = Math.min(2, window.devicePixelRatio||1);
+  W=r.width; H=r.height; cv.width=W*dpr; cv.height=H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  horizon=H*.36; gb=H*.86; roadHalf=Math.min(W*.46,H*.7); cx=W/2;
+}
+window.addEventListener('resize', resize);
+function sh(hex,f){ // تفتيح (+) أو تغميق (-) لون
+  const n=parseInt(hex.slice(1),16); let r=n>>16,g=n>>8&255,b=n&255;
+  const t=f<0?0:255,p=Math.abs(f);
+  r=Math.round((t-r)*p+r); g=Math.round((t-g)*p+g); b=Math.round((t-b)*p+b);
+  return `rgb(${r},${g},${b})`;
+}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+const gx = (frac,z) => cx + frac*roadHalf*proj(z);          // موضع أفقي على الطريق
+const gy = z => horizon + (gb-horizon)*proj(z);              // موضع الأرض
+
+/* ============================== الحالة ============================== */
+let G, mode='menu', last=0, locked=false, curQ=null;
+const stars = Array.from({length:45},()=>({x:Math.random(),y:Math.random()*.9,r:Math.random()*1.6+.4,p:Math.random()*6}));
+function resetGame(){
+  G={score:0,correct:0,answered:0,t:0,off:0,qTimer:0,qGap:6,pl:1,tl:1,items:[],spawn:.6,stumble:0,flash:0,texts:[]};
+  updateHud();
+}
+function updateHud(){
+  $('hScore').textContent=AR(G.score);
+  $('hQ').textContent=AR(Math.min(G.answered+(mode==='question'?1:0),TOTAL));
+  $('fill').style.width=(G.answered/TOTAL*100)+'%';
+}
+function showScreen(id){['sStart','sHelp','sRes'].forEach(s=>$(s).classList.toggle('on',s===id));}
+function setPlayUI(on){$('hud').classList.toggle('on',on);$('pad').classList.toggle('on',on);setTimeout(resize,0);}
+
+/* ============================== سير اللعبة ============================== */
+function startRun(){
+  resetGame(); showScreen(null); setPlayUI(true); mode='run';
+}
+function moveLane(d){ if(mode!=='run')return; G.tl=Math.max(0,Math.min(2,G.tl+d)); }
+
+function spawnRow(){
+  const lane=Math.floor(Math.random()*3);
+  const type=['cube','cone','cyl'][Math.floor(Math.random()*3)];
+  G.items.push({type,lane,z:1800});
+  if(Math.random()<.75){                          // مسار جواهر في مسار آخر
+    let gl=(lane+1+Math.floor(Math.random()*2))%3;
+    for(let k=0;k<3;k++) G.items.push({type:'gem',lane:gl,z:1800+k*110});
+  }
+}
+function addText(t,lane,col){G.texts.push({t,x:gx((lane-1)*laneOff,0),y:gb-H*.2,life:1,col});}
+
+function update(dt){
+  const speed=520*(G.stumble>0?.4:1);
+  G.t+=dt; G.off+=speed*dt; G.qTimer+=dt;
+  G.stumble=Math.max(0,G.stumble-dt); G.flash=Math.max(0,G.flash-dt);
+  G.pl+=(G.tl-G.pl)*Math.min(1,dt*12);
+  G.spawn-=dt;
+  if(G.spawn<=0 && G.qTimer<G.qGap-3.4){spawnRow();G.spawn=.8+Math.random()*.5;}
+  for(const it of G.items){
+    it.z-=speed*dt;
+    if(!it.done && it.z>-40 && it.z<50 && Math.abs(G.pl-it.lane)<.55){
+      it.done=true;
+      if(it.type==='gem'){G.score+=PTS_GEM;addText('+'+AR(PTS_GEM),it.lane,'#36d6e7');updateHud();}
+      else{G.stumble=.6;G.flash=.6;addText('أوه!',it.lane,'#ff6b6b');}
+    }
+  }
+  G.items=G.items.filter(i=>i.z>-80&&!i.done);
+  for(const t of G.texts){t.life-=dt;t.y-=dt*60;}
+  G.texts=G.texts.filter(t=>t.life>0);
+  if(G.qTimer>=G.qGap && G.answered<TOTAL) askQuestion();
+}
+
+/* ============================== الأسئلة ============================== */
+function askQuestion(){
+  mode='question';
+  G.items=G.items.filter(i=>i.z>700);               // إخلاء الطريق القريب
+  curQ=QUESTIONS[G.answered]; locked=false;
+  $('qnum').textContent='السؤال '+AR(G.answered+1)+' من '+AR(TOTAL);
+  $('qtext').textContent=curQ.q;
+  const opts=curQ.o.map((t,i)=>({t,ok:i===curQ.a}));
+  for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
+  curQ.shown=opts;
+  const box=$('opts'); box.innerHTML='';
+  opts.forEach((o,i)=>{
+    const b=document.createElement('button'); b.className='opt';
+    b.innerHTML='<b>'+AR(i+1)+'</b>'; b.appendChild(document.createTextNode(o.t));
+    b.onclick=()=>answer(i); box.appendChild(b);
+  });
+  $('fb').className=''; $('fb').innerHTML='';
+  $('qbox').classList.add('on'); $('pad').classList.remove('on');
+  updateHud();
+}
+function answer(i){
+  if(locked||mode!=='question')return; locked=true;
+  const chosen=curQ.shown[i], btns=[...document.querySelectorAll('.opt')];
+  btns.forEach((b,k)=>{b.disabled=true; if(curQ.shown[k].ok)b.classList.add('ok');});
+  G.answered++;
+  const fb=$('fb');
+  if(chosen.ok){
+    G.correct++; G.score+=PTS_CORRECT;
+    fb.className='good'; fb.textContent='أحسنتِ! إجابة صحيحة، +'+AR(PTS_CORRECT)+' نقطة 🎉';
+    updateHud(); setTimeout(proceed,1400);
+  }else{
+    btns[i].classList.add('bad');
+    fb.className='miss';
+    fb.innerHTML='لا بأس، هكذا نتعلم! 💪<br>الإجابة الصحيحة: '+curQ.o[curQ.a]+'<br><small>'+curQ.why+'</small><br>';
+    const nb=document.createElement('button'); nb.className='big'; nb.textContent='متابعة'; nb.onclick=proceed;
+    fb.appendChild(nb); updateHud();
+  }
+}
+let proceeding=false;
+function proceed(){
+  if(mode!=='question'||!locked)return;
+  $('qbox').classList.remove('on');
+  if(G.answered>=TOTAL){showResult();return;}
+  mode='run'; G.qTimer=0; G.qGap=8; G.spawn=.5; $('pad').classList.add('on'); updateHud();
+}
+function showResult(){
+  mode='result'; setPlayUI(false);
+  const pct=Math.round(G.correct/TOTAL*100);
+  $('rScore').textContent=AR(G.correct)+' / '+AR(TOTAL);
+  $('rPct').textContent='النسبة المئوية: '+AR(pct)+'٪  |  مجموع النقاط: '+AR(G.score);
+  $('rMsg').textContent = G.correct>=9?'ممتاز! أنتِ مصممة تنكركاد محترفة 🌟'
+    : G.correct>=7?'رائع! أداء جميل، وقريبًا تصلين إلى العلامة الكاملة 👏'
+    : G.correct>=5?'جيد! راجعي الدرس وأعيدي المحاولة لتحسّني نتيجتك 💪'
+    : 'بداية طيبة! اقرئي الدرس مرة أخرى وجرّبي من جديد، ستتحسنين بإذن الله 😊';
+  showScreen('sRes');
+}
+
+/* ============================== الرسم ============================== */
+function box3(x,by,w,h,col,k){                    // مكعب بمنظور مبسط
+  const d=w*.25, x0=x-w/2, x1=x+w/2, top=by-h;
+  ctx.fillStyle=col; ctx.fillRect(x0,top,w,h);
+  ctx.fillStyle=sh(col,.35); ctx.beginPath(); ctx.moveTo(x0,top);ctx.lineTo(x1,top);ctx.lineTo(x1+k,top-d);ctx.lineTo(x0+k,top-d);ctx.closePath();ctx.fill();
+  if(k){const xi=k>0?x1:x0; ctx.fillStyle=sh(col,-.3); ctx.beginPath();ctx.moveTo(xi,top);ctx.lineTo(xi+k,top-d);ctx.lineTo(xi+k,by-d);ctx.lineTo(xi,by);ctx.closePath();ctx.fill();}
+  ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=1;ctx.strokeRect(x0,top,w,h);
+}
+function cyl3(x,by,w,h,col){
+  const rx=w/2, ry=w*.16;
+  ctx.fillStyle=col; ctx.fillRect(x-rx,by-h,w,h);
+  ctx.beginPath();ctx.ellipse(x,by,rx,ry,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=sh(col,.35);ctx.beginPath();ctx.ellipse(x,by-h,rx,ry,0,0,Math.PI*2);ctx.fill();
+}
+function cone3(x,by,w,h,col){
+  ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x-w/2,by);ctx.lineTo(x+w/2,by);ctx.lineTo(x,by-h);ctx.closePath();ctx.fill();
+  ctx.fillStyle=sh(col,-.25);ctx.beginPath();ctx.moveTo(x,by);ctx.lineTo(x+w/2,by);ctx.lineTo(x,by-h);ctx.closePath();ctx.fill();
+}
+
+function drawSky(){
+  let g=ctx.createLinearGradient(0,0,0,horizon);g.addColorStop(0,'#14183f');g.addColorStop(1,'#8b45a8');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,horizon+1);
+  for(const s of stars){ctx.globalAlpha=.5+.5*Math.sin(G.t*2+s.p);ctx.fillStyle='#fff';ctx.fillRect(s.x*W,s.y*horizon,s.r,s.r);}
+  ctx.globalAlpha=1;
+  const sr=Math.min(H*.13,W*.13), sy=horizon-sr*.55;                  // الشمس
+  g=ctx.createLinearGradient(0,sy-sr,0,sy+sr);g.addColorStop(0,'#ffd23f');g.addColorStop(1,'#ff6b6b');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,sy,sr,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#8b45a8';for(let i=0;i<3;i++)ctx.fillRect(cx-sr,sy+sr*(.1+i*.28),sr*2,sr*.07*(i+1)*.6+2);
+  // مكعب سلكي عائم (رمز النمذجة ثلاثية الأبعاد)
+  const a=Math.min(W,H)*.07, fx=W*.2, fy=horizon*.4+Math.sin(G.t*1.5)*6;
+  ctx.strokeStyle='#36d6e7';ctx.lineWidth=2;
+  ctx.strokeRect(fx-a/2,fy-a/2,a,a);ctx.strokeRect(fx-a/2+a*.35,fy-a/2-a*.35,a,a);
+  ctx.beginPath();[[0,0],[1,0],[0,1],[1,1]].forEach(([i,j])=>{ctx.moveTo(fx-a/2+i*a,fy-a/2+j*a);ctx.lineTo(fx-a/2+i*a+a*.35,fy-a/2+j*a-a*.35);});ctx.stroke();
+}
+function drawRoad(){
+  ctx.fillStyle='#2a1d5e';ctx.fillRect(0,horizon,W,H-horizon);
+  const e=.95,sb=1.2,yb=horizon+(gb-horizon)*sb;
+  let g=ctx.createLinearGradient(0,horizon,0,yb);g.addColorStop(0,'#3a3f93');g.addColorStop(1,'#232766');
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(cx,horizon);ctx.lineTo(cx+roadHalf*e*sb,yb);ctx.lineTo(cx-roadHalf*e*sb,yb);ctx.closePath();ctx.fill();
+  ctx.lineWidth=3;ctx.strokeStyle='#36d6e7';
+  [-e,e].forEach(f=>{ctx.beginPath();ctx.moveTo(cx,horizon);ctx.lineTo(cx+roadHalf*f*sb,yb);ctx.stroke();});
+  const o=G.off%120;
+  for(let k=0;k<26;k++){                           // خطوط الشبكة والمسارات المتقطعة
+    const z=k*120-o; if(z<-50)continue;
+    ctx.strokeStyle='rgba(54,214,231,.28)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(gx(-e,z),gy(z));ctx.lineTo(gx(e,z),gy(z));ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=Math.max(1,3*proj(z));
+    [-laneOff/2,laneOff/2].forEach(f=>{ctx.beginPath();ctx.moveTo(gx(f,z),gy(z));ctx.lineTo(gx(f,z+60),gy(z+60));ctx.stroke();});
+  }
+}
+function drawBuildings(){
+  const cols=['#3b82f6','#ff6b6b','#3ddc97','#ffd23f','#a78bfa'], base=Math.floor(G.off/150), o=G.off%150;
+  for(let i=16;i>=0;i--){
+    const z=i*150-o; if(z<-60)continue;
+    const idx=i+base, s=proj(z), alpha=Math.min(1,(2400-z)/500);
+    ctx.globalAlpha=Math.max(0,alpha);
+    for(const side of [-1,1]){
+      const n=idx*2+(side>0?1:0), col=cols[n%5], by=gy(z), w=roadHalf*.5*s;
+      const h=H*(.2+((n*7919)%100)/100*.3)*s*1.4, x=cx+side*roadHalf*1.32*s, k=-side*w*.18, t=n%3;
+      if(t===1){cyl3(x,by,w,h,col);}
+      else{box3(x,by,w,h,col,k); if(t===2)cone3(x,by-h-w*.25,w*1.05,w*.7,'#ff6b6b');}
+    }
+  }
+  ctx.globalAlpha=1;
+}
+function drawItems(){
+  const arr=[...G.items].sort((a,b)=>b.z-a.z);
+  for(const it of arr){
+    if(it.z<-60)continue;
+    const s=proj(it.z), x=gx((it.lane-1)*laneOff,it.z), by=gy(it.z), w=roadHalf*.22*s;
+    ctx.globalAlpha=Math.max(0,Math.min(1,(1800-it.z)/300));
+    if(it.type==='cube')box3(x,by,w,w,'#e63946',0);
+    else if(it.type==='cone')cone3(x,by,w*.95,w*1.25,'#ff9f1c');
+    else if(it.type==='cyl')cyl3(x,by,w*.85,w*1.1,'#f77f00');
+    else{                                           // جوهرة زرقاء
+      const r=w*.35, y=by-w*.7+Math.sin(G.t*5+it.z*.01)*r*.2;
+      ctx.fillStyle='#36d6e7';ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r*.8,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r*.8,y);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#bff6ff';ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r*.8,y);ctx.lineTo(x,y);ctx.closePath();ctx.fill();
+      ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+    }
+  }
+  ctx.globalAlpha=1;
+}
+function drawPlayer(){
+  const running=(mode==='run'||mode==='menu'), u=Math.min(H*.1,W*.14), x=gx((G.pl-1)*laneOff,0);
+  const ph=G.t*12, bob=running?Math.abs(Math.sin(ph))*u*.14:0, sw=running?Math.sin(ph)*u*.22:0, y=gb-bob;
+  if(G.flash>0&&Math.floor(G.t*20)%2)ctx.globalAlpha=.4;
+  ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(x,gb,u*.45,u*.12,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#14183f';                                          // الساقان
+  rr(x-u*.28+sw*.3,y-u*.45,u*.22,u*.45,u*.08);ctx.fill();
+  rr(x+u*.06-sw*.3,y-u*.45,u*.22,u*.45,u*.08);ctx.fill();
+  ctx.fillStyle='#ffd23f';                                          // الحذاءان
+  rr(x-u*.32+sw,y-u*.1,u*.3,u*.12,u*.05);ctx.fill();
+  rr(x+u*.02-sw,y-u*.1,u*.3,u*.12,u*.05);ctx.fill();
+  ctx.strokeStyle='#2ec4b6';ctx.lineWidth=u*.12;ctx.lineCap='round';  // الذراعان
+  ctx.beginPath();ctx.moveTo(x-u*.34,y-u*.95);ctx.lineTo(x-u*.5,y-u*.62-sw);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x+u*.34,y-u*.95);ctx.lineTo(x+u*.5,y-u*.62+sw);ctx.stroke();
+  ctx.fillStyle='#2ec4b6';rr(x-u*.36,y-u*1.05,u*.72,u*.7,u*.18);ctx.fill();   // الجسم
+  ctx.fillStyle='#fff';ctx.fillRect(x-u*.12,y-u*.85,u*.24,u*.24);                // شعار المكعب
+  ctx.strokeStyle='#14183f';ctx.lineWidth=2;ctx.strokeRect(x-u*.12,y-u*.85,u*.24,u*.24);
+  const hy=y-u*1.5;                                                  // الرأس
+  ctx.strokeStyle='#14183f';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,hy-u*.42);ctx.lineTo(x,hy-u*.62);ctx.stroke();
+  ctx.fillStyle='#ffd23f';ctx.beginPath();ctx.arc(x,hy-u*.66,u*.08,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#f4f6ff';ctx.beginPath();ctx.arc(x,hy,u*.46,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#14183f';rr(x-u*.34,hy-u*.2,u*.68,u*.34,u*.15);ctx.fill();
+  ctx.fillStyle='#36d6e7';ctx.beginPath();ctx.ellipse(x-u*.13,hy-u*.04,u*.06,u*.08,0,0,Math.PI*2);ctx.ellipse(x+u*.13,hy-u*.04,u*.06,u*.08,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#ff6b6b';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(x,hy+u*.14,u*.1,.15*Math.PI,.85*Math.PI);ctx.stroke();
+  ctx.fillStyle='#ff7eb6';                                           // الفيونكة
+  ctx.beginPath();ctx.moveTo(x+u*.3,hy-u*.34);ctx.lineTo(x+u*.5,hy-u*.48);ctx.lineTo(x+u*.5,hy-u*.2);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(x+u*.3,hy-u*.34);ctx.lineTo(x+u*.1,hy-u*.48);ctx.lineTo(x+u*.1,hy-u*.2);ctx.closePath();ctx.fill();
+  ctx.globalAlpha=1;
+}
+function drawTexts(){
+  ctx.textAlign='center';ctx.font='bold '+Math.round(H*.05)+'px Tahoma,Arial';
+  for(const t of G.texts){ctx.globalAlpha=Math.max(0,t.life);ctx.fillStyle=t.col;ctx.strokeStyle='#14183f';ctx.lineWidth=4;ctx.strokeText(t.t,t.x,t.y);ctx.fillText(t.t,t.x,t.y);}
+  ctx.globalAlpha=1;
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  drawSky();drawRoad();drawBuildings();drawItems();drawPlayer();drawTexts();
+  if(G.flash>0){ctx.fillStyle='rgba(255,60,60,'+(G.flash*.25)+')';ctx.fillRect(0,0,W,H);}
+}
+
+/* ============================== الحلقة الرئيسة ============================== */
+function loop(ts){
+  const dt=Math.min(.05,(ts-last)/1000||0); last=ts;
+  if(mode==='run')update(dt);
+  else if(mode==='menu'){G.t+=dt;G.off+=220*dt;}
+  else if(mode==='question'||mode==='result'){G.t+=dt*.3;}
+  draw(); requestAnimationFrame(loop);
+}
+
+/* ============================== التحكم ============================== */
+$('bStart').onclick=()=>showScreen('sHelp');
+$('bGo').onclick=startRun;
+$('bAgain').onclick=startRun;
+$('bL').addEventListener('pointerdown',e=>{e.preventDefault();moveLane(-1);});
+$('bR').addEventListener('pointerdown',e=>{e.preventDefault();moveLane(1);});
+document.addEventListener('keydown',e=>{
+  if(mode==='run'){
+    if(e.code==='ArrowLeft'||e.code==='KeyA'){moveLane(-1);e.preventDefault();}
+    else if(e.code==='ArrowRight'||e.code==='KeyD'){moveLane(1);e.preventDefault();}
+  }else if(mode==='question'&&!locked){
+    const n=parseInt(e.key); if(n>=1&&n<=4)answer(n-1);
+  }else if(mode==='question'&&locked&&G.answered<=TOTAL&&(e.key==='Enter'||e.key===' ')&&$('fb').classList.contains('miss')){proceed();}
+});
+let tx=null;                                       // السحب باللمس
+cv.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;},{passive:true});
+cv.addEventListener('touchend',e=>{
+  if(tx===null)return; const dx=e.changedTouches[0].clientX-tx; tx=null;
+  if(Math.abs(dx)>30)moveLane(dx>0?1:-1);
+},{passive:true});
+
+/* ============================== البدء ============================== */
+resetGame(); resize(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
